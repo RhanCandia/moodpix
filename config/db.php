@@ -4,7 +4,7 @@ class DB {
 
     public $conn;
 
-    private $host = 'mysql';
+    private $host = 'localhost';
     private $name = 'mood';
     private $user = 'mood';
     private $pass = 'secret';
