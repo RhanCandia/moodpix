@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <style>
+        html, body, #app, .main-container, .main-row, .layout-container {
+            height: 100%;
+        }
+        .main-container {
+
+        }
+        .palette-container {
+            background-color: #eeeeee;
+            width: 320px;
+        }
+        .mood-container {
+            background-color: #fff;
+            padding: 0px;
+        }
+        .mood-pixel {
+            border: 1px solid #999;
+            width: 24px;
+            height: 24px;
+            margin: 0px;
+            padding: 0px;
+            float: left;
+        }
+        .btn-pixel {
+            width: 24px;
+            height: 24px;
+        }
+        .instructions {
+            margin-top: 4em;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="main-container container-fluid">
+            <div class="main-row row">
+                <div class="layout-container palette-container col-3">
+                    <img src="logo.png" class="img-fluid" alt="...">
+                    <div class="mb-3">
+                        <label for="exampleFormControlTextarea1" class="form-label">Describe how you feel (Optional)</label>
+                        <textarea
+                                class="form-control"
+                                id="exampleFormControlTextarea1"
+                                rows="3"
+                                v-model="mood_note"
+                                :style="{ backgroundColor: '#' + mood_color, color: '#' + text_color }"></textarea>
+                    </div>
+                    <label class="form-label">What color do you feel?</label>
+                    <div class="btn-group" role="group" aria-label="Mood color">
+                        <template v-for="color in palette">
+                            <button
+                                    type="button"
+                                    class="btn btn-primary btn-pixel"
+                                    :style="{ backgroundColor: '#' + color }" @click.prevent="setMood(color)"></button>
+                        </template>
+                    </div>
+                    <div class="clearfix"></div>
+                    <br />
+                    <button type="button"
+                            class="btn btn-primary float-end"
+                            @click.prevent="saveMood()"
+                            :disabled="sending">{{ (sending) ? 'Saving' : 'Save' }}</button>
+                    <template v-if="editing">
+                        <button type="button"
+                                class="btn btn-secondary"
+                                @click.prevent="deleteMood()"
+                                :disabled="deleting">{{ (deleting) ? 'Deleting' : 'Delete' }}</button>
+                    </template>
+
+                    <br />
+                    <div class="clearfix"></div>
+
+                    <div class="instructions">
+                        <ul class="list-unstyled">
+                            <li>Track your mood in pixels.</li>
+                            <li>Each submitted mood is added in the mood pixels on the right.</li>
+                            <li>Click on a pixel on the right panel to edit them.</li>
+                            <li>When editing a mood pixel, you can also delete them.</li>
+                            <li>Technologies used:
+                                <ul>
+                                    <li>PHP</li>
+                                    <li>MySQL</li>
+                                    <li>VueJS</li>
+                                </ul>
+                            </li>
+                            <li>This is app includes a basic UI and API layer.</li>
+                            <li>App is created to demonstrate MySQL connection.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mood-container col">
+                    <template v-for="mood in moods">
+                        <div class="mood-pixel"
+                             :key="mood.id"
+                             @click="editMood(mood.id)"
+                             :style="{ backgroundColor: '#' + mood.mood_color }" :title="mood.mood_created"></div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                moods: [],
+                palette: [
+                    "ffffff",
+                    "264653",
+                    "2a9d8f",
+                    "e9c46a",
+                    "f4a261",
+                    "e76f51",
+                ],
+                mood_color: 'ffffff',
+                text_color: '000000',
+                mood_note: '',
+                sending: false,
+                deleting: false,
+                editing: 0,
+            },
+            methods: {
+                getAll: function () {
+                    axios
+                        .get('/moods')
+                        .then(res => (this.moods = res.data.moods));
+                },
+                saveMood: function () {
+                    this.sending = !this.sending;
+                    if (!this.editing) {
+                        axios
+                            .post('/moods', {
+                                'mood_color': this.mood_color,
+                                'mood_note': this.mood_note,
+                            })
+                            .then((res) => {
+                                this.moods.push(res.data.mood);
+                            }).finally(() => {
+                            this.mood_color = 'ffffff';
+                            this.mood_note = '';
+                            this.sending = !this.sending;
+                        });
+                    } else {
+                        axios
+                            .put('/moods/' + this.editing, {
+                                'mood_color': this.mood_color,
+                                'mood_note': this.mood_note,
+                            })
+                            .then(() => {
+                                this.moods = this.moods.filter((el) => {
+                                    if (el.id === this.editing) {
+                                        el.mood_color = this.mood_color;
+                                        el.mood_note = this.mood_note;
+                                    }
+
+                                    return el;
+                                });
+                            })
+                            .finally(() => {
+                                this.mood_color = 'ffffff';
+                                this.mood_note = '';
+                                this.sending = !this.sending;
+                                this.editing = 0;
+                            });
+                    }
+                },
+                editMood: function (id) {
+                    let mood = this.moods.filter(function (el) {
+                        if (el.id === id) {
+                            return el
+                        }
+                    });
+
+                    this.editing = mood[0].id;
+
+                    this.mood_note = mood[0].mood_note;
+                    this.mood_color = mood[0].mood_color;
+                    this.text_color = (mood[0].mood_color === '264653') ? 'ffffff' : '000000';
+                },
+                deleteMood: function() {
+                    this.deleting = !this.deleting;
+                    axios
+                        .delete('/moods/' + this.editing)
+                        .then(() => {
+                            this.moods = this.moods.filter((el) => {
+                                return (el.id !== this.editing);
+                            });
+                        })
+                        .finally(() => {
+                            this.mood_color = 'ffffff';
+                            this.mood_note = '';
+                            this.deleting = !this.deleting;
+                            this.editing = 0;
+                        });
+                },
+                setMood: function (color) {
+                    this.mood_color = color;
+                    this.text_color = (color === '264653') ? 'ffffff' : '000000';
+                }
+            },
+            created: function () {
+                this.getAll();
+            }
+        })
+    </script>
+</body>
+</html>
